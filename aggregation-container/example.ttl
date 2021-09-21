@@ -1,0 +1,22 @@
+<> a :AggregationContainer ;
+       ldp:contains </1>, </2> ;
+       ldp:membershipResource <#software> ;
+       ldp:hasMemberRelation ex:hasAccumulatedSeverityOfBugs ;
+       :insertedAggregationRelation ex:hasSeverity ;
+       :aggregation :AVG .
+
+</1> a ex:Bug ;
+       ex:hasSeverity 2 ;
+       ex:hasCategory ex:StackOverflow .
+
+</2> a ex:Bug ;
+       ex:hasSeverity 3 ;
+       ex:hasCategory ex:SQLInjection .
+
+
+# Reasoning =>
+<#software> ex:hasAccumulatedSeverityOfBugs 2.5 .
+
+# Use cases:
+# SUM: Task queue estimated time
+# AVG: Average temperature in a city

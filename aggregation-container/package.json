@@ -1,0 +1,26 @@
+{
+  "name": "aggregation-container",
+  "version": "0.1.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node-dev src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Daniel Schraudner <daniel.schraudner@fau.de>",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^4.3.4"
+  },
+  "dependencies": {
+    "@types/express": "^4.17.12",
+    "@types/n3": "^1.10.0",
+    "@types/node": "^15.12.5",
+    "express": "^4.17.1",
+    "moment": "^2.29.1",
+    "n3": "^1.10.0",
+    "ts-node": "^10.0.0",
+    "ts-node-dev": "^1.1.6"
+  }
+}
