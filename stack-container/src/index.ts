@@ -9,16 +9,7 @@ const port: number = parseInt(process.argv[2]);
 
 const RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
 const LDP = 'http://www.w3.org/ns/ldp#';
-const XSD = 'http://www.w3.org/2001/XMLSchema#';
-const LH = 'http://localhost:8000/';
-const SOSA = 'http://www.w3.org/ns/sosa/';
-const SSN = 'http://www.w3.org/ns/ssn/';
 const SC = 'https://solid.ti.rw.fau.de/public/ns/stream-containers#';
-
-const MEMBERSHIP_RESOURCE = namedNode('#window1');
-const HAS_MEMBER_RELATION = namedNode('inWindow');
-const CONTENT_TIMESTAMP_RELATION = namedNode(SOSA + 'resultTime');
-const LOGICAL_WINDOW = literal('PT2M', namedNode(XSD + 'duration'));
 
 const map: Map<string, Quad[]> = new Map();
 let ToS : string;
@@ -38,11 +29,6 @@ router.route('/').get(function (req, res, next) {
 	writer.addQuads([
 		quad(namedNode(''), namedNode(RDF + 'type'), namedNode(SC + 'StackContainer')),
 		quad(namedNode(''), namedNode(SC + 'window'), window),
-		//quad(window, namedNode(SC + 'physical'), PHYSICAL_WINDOW),
-		quad(window, namedNode(SC + 'logical'), LOGICAL_WINDOW),
-		quad(window, namedNode(LDP + 'membershipResource'), MEMBERSHIP_RESOURCE),
-		quad(window, namedNode(LDP + 'hasMemberRelation'), HAS_MEMBER_RELATION),
-		quad(window, namedNode(SC + 'contentTimestampRelation'), CONTENT_TIMESTAMP_RELATION),
 		// add next predicate
 		quad(window, namedNode(LDP + 'next'), nextNode),
 	]);
@@ -61,7 +47,11 @@ router.route('/push').post(function (req, res, next) {
 			let uri = '/' + map.size;
 			map.set(uri, quads);
 			// set new element's 'next' to previous ToS
-			quads.push(quad(blankNode(), namedNode(LDP + 'next'), namedNode(ToS)));
+			if(ToS === undefined) {
+				quads.push(quad(blankNode(), namedNode(LDP + 'next'), namedNode(LDP + 'nil')));
+			} else {
+				quads.push(quad(blankNode(), namedNode(LDP + 'next'), namedNode(ToS)));
+			}
 			// set ToS to new element
 			ToS = uri;		
 			res.status(201);

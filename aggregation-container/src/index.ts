@@ -38,12 +38,13 @@ AGG_MAP.set(MAX_URI, MAX_FUNCTION);
 AGG_MAP.set(COUNT_URI, COUNT_FUNCTION);
 AGG_MAP.set(SAMPLE_URI, SAMPLE_FUNCTION);
 
-const MEMBERSHIP_RESOURCE = namedNode('#waischenfeld');
-const HAS_MEMBER_RELATION = namedNode('#numTemperature');
-const INSERTED_AGGREGATION_RELATION = namedNode(SOSA + 'hasSimpleResult');
-const AGGREGATION_FUNCTION = namedNode(SAMPLE_URI);
+const resourceMap: Map<string, Quad[]> = new Map();
 
-const map: Map<string, Quad[]> = new Map();
+const containerMap: Map<string, NamedNode> = new Map();
+containerMap.set(LDP + 'membershipResource', namedNode('#waischenfeld'));
+containerMap.set(LDP + 'hasMemberRelation', namedNode('#numTemperature'));
+containerMap.set(AC + 'insertedAggregationRelation', namedNode(SOSA + 'hasSimpleResult'));
+containerMap.set(AC + 'aggregationFunction', namedNode(COUNT_URI));
 
 var router = express.Router();
 router.route('/').get(function (req, res, next) {
@@ -52,22 +53,22 @@ router.route('/').get(function (req, res, next) {
 	let writer: Writer<Quad> = new Writer(res);
 	writer.addQuads([
 		quad(namedNode(''), namedNode(RDF + 'type'), namedNode(AC + 'AggregationContainer')),
-		quad(namedNode(''), namedNode(LDP + 'membershipResource'), MEMBERSHIP_RESOURCE),
-		quad(namedNode(''), namedNode(LDP + 'hasMemberRelation'), HAS_MEMBER_RELATION),
-		quad(namedNode(''), namedNode(AC + 'insertedAggregationRelation'), INSERTED_AGGREGATION_RELATION),
-		quad(namedNode(''), namedNode(AC + 'aggregationFunction'), namedNode(SUM_URI)),
+		quad(namedNode(''), namedNode(LDP + 'membershipResource'), containerMap.get(LDP + 'membershipResource')!),
+		quad(namedNode(''), namedNode(LDP + 'hasMemberRelation'), containerMap.get(LDP + 'hasMemberRelation')!),
+		quad(namedNode(''), namedNode(AC + 'insertedAggregationRelation'), containerMap.get(AC + 'insertedAggregationRelation')!),
+		quad(namedNode(''), namedNode(AC + 'aggregationFunction'), containerMap.get(AC + 'aggregationFunction')!),
 	]);
-	Array.from(map.keys()).forEach((containedResource) => writer.addQuad(namedNode(''), namedNode(LDP + 'contains'), namedNode(containedResource)));
-	let results = Array.from(map.entries()).map(([resourceName, resourceQuads]) =>
+	Array.from(resourceMap.keys()).forEach((containedResource) => writer.addQuad(namedNode(''), namedNode(LDP + 'contains'), namedNode(containedResource)));
+	let results = Array.from(resourceMap.entries()).map(([resourceName, resourceQuads]) =>
 		resourceQuads.filter((quad) =>
-			quad.predicate.equals(INSERTED_AGGREGATION_RELATION)
+			quad.predicate.equals(containerMap.get(AC + 'insertedAggregationRelation')!)
 		).map((quad) =>
 			parseFloat(quad.object.value)
 		)[0]
 	);
-	let aggFunc = AGG_MAP.get(AGGREGATION_FUNCTION.value);
+	let aggFunc = AGG_MAP.get(containerMap.get(AC + 'aggregationFunction')!.value);
 	console.log(aggFunc!(results));
-	writer.addQuad(quad(MEMBERSHIP_RESOURCE, HAS_MEMBER_RELATION, literal(aggFunc!(results))));
+	writer.addQuad(quad(containerMap.get(LDP + 'membershipResource')!, containerMap.get(LDP + 'hasMemberRelation')!, literal(aggFunc!(results))));
 	writer.end();
 }).post(function (req, res, next) {
 	try {
@@ -76,7 +77,7 @@ router.route('/').get(function (req, res, next) {
 		let quads: Quad[] = [];
 		parser.on('data', (quad) => quads.push(quad));
 		parser.on('end', () => {
-			map.set('/' + map.size, quads);
+			resourceMap.set('/' + resourceMap.size, quads);
 			res.status(201);
 			res.send();
 		});
@@ -84,12 +85,31 @@ router.route('/').get(function (req, res, next) {
 		res.status(400);
 		res.send();	
 	}
+}).put(function (req, res, next) {
+	try {
+		let parser = new StreamParser();
+		req.pipe(parser);
+		let quads: Quad[] = [];
+		parser.on('data', (quad) => {
+			if(containerMap.has(quad.predicate.value)) {
+				containerMap.set(quad.predicate.value, quad.object);
+			}
+		});
+		parser.on('end', () => {
+			res.status(204);
+			res.send();
+		});
+	} catch (error) {
+		res.status(400);
+		res.send();	
+	}
+
 });
 router.route('/*').get(function (req, res, next) {
 	res.setHeader('Content-Type', 'text/turtle');
 	res.status(200);
 	let writer: Writer<Quad> = new Writer(res);
-	writer.addQuads(map.get(req.path) ?? []);
+	writer.addQuads(resourceMap.get(req.path) ?? []);
 	writer.end();
 });
 app.use(router);
