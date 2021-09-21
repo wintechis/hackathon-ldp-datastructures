@@ -67,7 +67,6 @@ router.route('/').get(function (req, res, next) {
 		)[0]
 	);
 	let aggFunc = AGG_MAP.get(containerMap.get(AC + 'aggregationFunction')!.value);
-	console.log(aggFunc!(results));
 	writer.addQuad(quad(containerMap.get(LDP + 'membershipResource')!, containerMap.get(LDP + 'hasMemberRelation')!, literal(aggFunc!(results))));
 	writer.end();
 }).post(function (req, res, next) {
@@ -111,6 +110,10 @@ router.route('/*').get(function (req, res, next) {
 	let writer: Writer<Quad> = new Writer(res);
 	writer.addQuads(resourceMap.get(req.path) ?? []);
 	writer.end();
+}).delete(function (req, res, next) {
+	resourceMap.delete(req.path);
+	res.status(204);
+	res.send();
 });
 app.use(router);
 app.listen(port, () => {
