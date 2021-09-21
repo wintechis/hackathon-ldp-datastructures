@@ -61,7 +61,11 @@ router.route('/push').post(function (req, res, next) {
 			let uri = '/' + map.size;
 			map.set(uri, quads);
 			// set new element's 'next' to previous ToS
-			quads.push(quad(blankNode(), namedNode(LDP + 'next'), namedNode(ToS)));
+			if(ToS === undefined) {
+				quads.push(quad(blankNode(), namedNode(LDP + 'next'), namedNode(LDP + 'nil')));
+			} else {
+				quads.push(quad(blankNode(), namedNode(LDP + 'next'), namedNode(ToS)));
+			}
 			// set ToS to new element
 			ToS = uri;		
 			res.status(201);
