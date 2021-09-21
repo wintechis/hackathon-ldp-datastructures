@@ -2,6 +2,7 @@ import express from 'express';
 import process from 'process';
 import { Quad, Writer, DataFactory, NamedNode, Parser, StreamParser } from 'n3';
 import moment from 'moment';
+import { resolveSoa } from 'dns';
 
 const { quad, namedNode, literal, blankNode } = DataFactory;
 const app = express();
@@ -17,18 +18,30 @@ const SSN = 'http://www.w3.org/ns/ssn/';
 const AC = 'https://solid.ti.rw.fau.de/public/ns/stream-containers#';
 
 const SUM_URI = 'https://www.w3.org/2005/xpath-functions/#sum';
-const SUM_FUNCTION: (as: number[]) => number = (as) => as.reduce((a, b) => a + b);
+const SUM_FUNCTION: (as: number[]) => number = (as) => as.length > 0 ? as.reduce((a, b) => a + b, 0) : NaN;
 const AVG_URI = 'https://www.w3.org/2005/xpath-functions/#avg';
-const AVG_FUNCTION: (as: number[]) => number = (as) => as.reduce((a, b) => a + b) / as.length;
+const AVG_FUNCTION: (as: number[]) => number = (as) => as.reduce((a, b) => a + b, 0) / as.length;
+const MIN_URI = 'https://www.w3.org/2005/xpath-functions/#min';
+const MIN_FUNCTION: (as: number[]) => number = (as) => Math.min(...as);
+const MAX_URI = 'https://www.w3.org/2005/xpath-functions/#max';
+const MAX_FUNCTION: (as: number[]) => number = (as) => Math.max(...as);
+const COUNT_URI = 'https://www.w3.org/2005/xpath-functions/#count';
+const COUNT_FUNCTION: (as: number[]) => number = (as) => as.length;
+const SAMPLE_URI = 'https://www.w3.org/2005/xpath-functions/#sample';
+const SAMPLE_FUNCTION: (as: number[]) => number = (as) => as.length > 0 ? as.sort((a,b) => Math.random() - 0.5)[0] : NaN;
 
 const AGG_MAP = new Map<string,(as: number[]) => number>();
 AGG_MAP.set(SUM_URI, SUM_FUNCTION);
 AGG_MAP.set(AVG_URI, AVG_FUNCTION);
+AGG_MAP.set(MIN_URI, MIN_FUNCTION);
+AGG_MAP.set(MAX_URI, MAX_FUNCTION);
+AGG_MAP.set(COUNT_URI, COUNT_FUNCTION);
+AGG_MAP.set(SAMPLE_URI, SAMPLE_FUNCTION);
 
 const MEMBERSHIP_RESOURCE = namedNode('#waischenfeld');
-const HAS_MEMBER_RELATION = namedNode('#averageTemperature');
+const HAS_MEMBER_RELATION = namedNode('#numTemperature');
 const INSERTED_AGGREGATION_RELATION = namedNode(SOSA + 'hasSimpleResult');
-const AGGREGATION_FUNCTION = namedNode(SUM_URI);
+const AGGREGATION_FUNCTION = namedNode(SAMPLE_URI);
 
 const map: Map<string, Quad[]> = new Map();
 
@@ -53,33 +66,8 @@ router.route('/').get(function (req, res, next) {
 		)[0]
 	);
 	let aggFunc = AGG_MAP.get(AGGREGATION_FUNCTION.value);
-	console.log(aggFunc!(results))
-	// Calculate physical window
-	/*
-	Array.from(map.entries()).sort(([resource1, quadList1], [resource2, quadList2]) => {
-		let timestamp1 = new Date(quadList1.filter(q => q.predicate.equals(CONTENT_TIMESTAMP_RELATION))[0].object.value);
-		let timestamp2 = new Date(quadList2.filter(q => q.predicate.equals(CONTENT_TIMESTAMP_RELATION))[0].object.value);
-		if(timestamp1 === timestamp2) {
-			return 0;
-		} else if(timestamp1 < timestamp2) {
-			return 1;
-		} else {
-			return -1;
-		}
-	}).slice(0, parseInt(PHYSICAL_WINDOW.value)).forEach(([memberResource, _]) => writer.addQuad(MEMBERSHIP_RESOURCE, HAS_MEMBER_RELATION, namedNode(memberResource)));
-	*/
-	// Calculate logical window
-	/*
-	let now = moment();
-	Array.from(map.entries()).filter(([resource, quadList]) => {
-		let timestamp = moment(quadList.filter(q => q.predicate.equals(INSERTED_AGGREGATION_RELATION))[0].object.value);
-		if(timestamp.isSameOrAfter(boundary)) {
-			return true;
-		} else {
-			return false;
-		}
-	}).forEach(([memberResource, _]) => writer.addQuad(MEMBERSHIP_RESOURCE, HAS_MEMBER_RELATION, namedNode(memberResource)));
-	*/
+	console.log(aggFunc!(results));
+	writer.addQuad(quad(MEMBERSHIP_RESOURCE, HAS_MEMBER_RELATION, literal(aggFunc!(results))));
 	writer.end();
 }).post(function (req, res, next) {
 	try {
