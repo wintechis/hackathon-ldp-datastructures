@@ -66,13 +66,14 @@ router.route('/push').post(function (req, res, next) {
 // pop a quad from the stack
 router.route('/pop').post(function (req, res, next) {
 	if(ToS === undefined) {
+		res.status(200);
 		res.send(namedNode(LDP+'nil'));
 	} else {
 		// remove top of stack
 		let popNode = map.get(ToS);
 		if (popNode === undefined){
-			res.status(400);
-			res.send();
+			res.status(200);
+			res.send(namedNode(LDP+'nil'));
 			return;
 		}
 		// remove quad from map
